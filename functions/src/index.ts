@@ -249,5 +249,28 @@ app.post('/api/test-notification', async (req: Request, res: Response) => {
   }
 });
 
+// POST /api/surveys - Submit a medication survey
+app.post('/api/surveys', async (req: Request, res: Response) => {
+  try {
+    const validatedData = insertMedicationSurveySchema.parse(req.body);
+    const survey = await storage.createMedicationSurvey(validatedData);
+    return res.json(survey);
+  } catch (error: any) {
+    console.error('Failed to create survey:', error);
+    return res.status(400).json({ error: error.message || 'Failed to create survey' });
+  }
+});
+
+// GET /api/surveys - Get all surveys
+app.get('/api/surveys', async (req: Request, res: Response) => {
+  try {
+    const surveys = await storage.getMedicationSurveys(DEFAULT_USER_ID);
+    return res.json(surveys);
+  } catch (error) {
+    console.error('Failed to fetch surveys:', error);
+    return res.status(500).json({ error: 'Failed to fetch surveys' });
+  }
+});
+
 // Export the Express app as a Cloud Function
 export const api = functions.https.onRequest(app);
