@@ -37,6 +37,18 @@ export const notificationSubscriptions = pgTable("notification_subscriptions", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const medicationSurveys = pgTable("medication_surveys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  medicationLogId: varchar("medication_log_id").notNull(),
+  medicationName: text("medication_name").notNull(),
+  hasDizziness: integer("has_dizziness").notNull(),
+  hasPain: integer("has_pain").notNull(),
+  painLevel: integer("pain_level"),
+  appetiteLevel: text("appetite_level").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 export const insertMedicationSchema = createInsertSchema(medications).omit({
   id: true,
 });
@@ -55,9 +67,21 @@ export const insertNotificationSubscriptionSchema = createInsertSchema(notificat
   createdAt: true,
 });
 
+export const insertMedicationSurveySchema = createInsertSchema(medicationSurveys).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  hasDizziness: z.number().min(0).max(1),
+  hasPain: z.number().min(0).max(1),
+  painLevel: z.number().min(0).max(10).optional(),
+  appetiteLevel: z.enum(['good', 'reduced', 'none']),
+});
+
 export type InsertMedication = z.infer<typeof insertMedicationSchema>;
 export type Medication = typeof medications.$inferSelect;
 export type InsertMedicationLog = z.infer<typeof insertMedicationLogSchema>;
 export type MedicationLog = typeof medicationLogs.$inferSelect;
 export type InsertNotificationSubscription = z.infer<typeof insertNotificationSubscriptionSchema>;
 export type NotificationSubscription = typeof notificationSubscriptions.$inferSelect;
+export type InsertMedicationSurvey = z.infer<typeof insertMedicationSurveySchema>;
+export type MedicationSurvey = typeof medicationSurveys.$inferSelect;

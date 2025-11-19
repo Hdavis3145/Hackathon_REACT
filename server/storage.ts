@@ -1,4 +1,4 @@
-import { type Medication, type InsertMedication, type MedicationLog, type InsertMedicationLog, type NotificationSubscription, type InsertNotificationSubscription } from "@shared/schema";
+import { type Medication, type InsertMedication, type MedicationLog, type InsertMedicationLog, type NotificationSubscription, type InsertNotificationSubscription, type MedicationSurvey, type InsertMedicationSurvey } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // Image paths for pills
@@ -22,17 +22,24 @@ export interface IStorage {
   getSubscription(userId: string): Promise<NotificationSubscription | undefined>;
   upsertSubscription(subscription: InsertNotificationSubscription): Promise<NotificationSubscription>;
   deleteSubscription(userId: string): Promise<void>;
+  
+  // Medication Surveys
+  createMedicationSurvey(survey: InsertMedicationSurvey): Promise<MedicationSurvey>;
+  getMedicationSurveys(): Promise<MedicationSurvey[]>;
+  getSurveyByLogId(medicationLogId: string): Promise<MedicationSurvey | undefined>;
 }
 
 export class MemStorage implements IStorage {
   private medications: Map<string, Medication>;
   private medicationLogs: Map<string, MedicationLog>;
   private notificationSubscriptions: Map<string, NotificationSubscription>;
+  private medicationSurveys: Map<string, MedicationSurvey>;
 
   constructor() {
     this.medications = new Map();
     this.medicationLogs = new Map();
     this.notificationSubscriptions = new Map();
+    this.medicationSurveys = new Map();
     this.initializeSampleData();
   }
 
@@ -207,6 +214,34 @@ export class MemStorage implements IStorage {
 
   async deleteSubscription(userId: string): Promise<void> {
     this.notificationSubscriptions.delete(userId);
+  }
+
+  // Medication Surveys
+  async createMedicationSurvey(insertSurvey: InsertMedicationSurvey): Promise<MedicationSurvey> {
+    const id = randomUUID();
+    const survey: MedicationSurvey = {
+      id,
+      medicationLogId: insertSurvey.medicationLogId,
+      medicationName: insertSurvey.medicationName,
+      hasDizziness: insertSurvey.hasDizziness,
+      hasPain: insertSurvey.hasPain,
+      painLevel: insertSurvey.painLevel ?? null,
+      appetiteLevel: insertSurvey.appetiteLevel,
+      notes: insertSurvey.notes ?? null,
+      createdAt: new Date(),
+    };
+    this.medicationSurveys.set(id, survey);
+    return survey;
+  }
+
+  async getMedicationSurveys(): Promise<MedicationSurvey[]> {
+    return Array.from(this.medicationSurveys.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getSurveyByLogId(medicationLogId: string): Promise<MedicationSurvey | undefined> {
+    return Array.from(this.medicationSurveys.values())
+      .find(survey => survey.medicationLogId === medicationLogId);
   }
 }
 
