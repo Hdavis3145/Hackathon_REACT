@@ -87,10 +87,11 @@ medicationSurveys {
 
 ## 🎯 How It Works (User Flow)
 
+### Automatic Detection Flow
 ```
 1. User scans medication
        ↓
-2. AI identifies pill
+2. ✅ AI identifies pill
        ↓
 3. User logs the dose
        ↓
@@ -106,6 +107,27 @@ medicationSurveys {
        ↓
 9. Caregivers can view responses
 ```
+
+### Manual Selection Flow (NEW!)
+```
+1. User scans medication
+       ↓
+2. ❌ AI doesn't detect pill
+       ↓
+3. 🆕 Manual medication selector appears
+       ↓
+4. User taps their medication from list
+       ↓
+5. Dose is logged
+       ↓
+6. 🔔 Survey dialog appears
+       ↓
+7. User answers 3 questions
+       ↓
+8. Survey completed!
+```
+
+**Result:** Users can **always** answer the survey, even if the camera doesn't detect a pill!
 
 ---
 

@@ -28,9 +28,10 @@ Preferred communication style: Simple, everyday language.
 **Page Structure**:
 - Home: Dashboard showing today's medications and adherence statistics
 - Schedule: Full medication schedule with today/tomorrow tabs
-- Scan: Camera interface for pill identification
+- Scan: Camera interface for pill identification with manual medication selector fallback
 - History: Log of past medication intake with filtering
 - Settings: User preferences and caregiver management
+- Survey: Post-medication health survey (dizziness, pain, appetite)
 
 **Component Architecture**: Reusable card-based components (MedicationCard, HistoryEntry, StatCard, PillIdentification) with consistent spacing and typography patterns.
 
@@ -96,6 +97,10 @@ Preferred communication style: Simple, everyday language.
 **Pill Identification**: Mock implementation using random selection from pill database
 - Returns pill name, type, image, confidence score (70-99%), and common usage
 - Designed to be replaced with actual image recognition API (e.g., computer vision service)
+- **Manual Selection Fallback**: If pill detection fails, users can manually select their medication from their schedule
+  - Ensures users can always log medications and complete health surveys
+  - Logged with confidence=0 to indicate manual selection
+  - Maintains complete workflow even with detection failures
 
 **Date/Time Utilities**: `date-fns` for consistent date formatting and manipulation across the application
 
