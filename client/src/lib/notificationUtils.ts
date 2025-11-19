@@ -79,6 +79,25 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+function isValidBase64(str: string): boolean {
+  // Check if string is valid URL-safe Base64
+  const base64Regex = /^[A-Za-z0-9_-]+$/;
+  if (!base64Regex.test(str) || str.length === 0) {
+    return false;
+  }
+  
+  // Try to decode to verify it's actually valid Base64
+  try {
+    const padding = '='.repeat((4 - (str.length % 4)) % 4);
+    const base64 = (str + padding).replace(/-/g, '+').replace(/_/g, '/');
+    window.atob(base64);
+    return true;
+  } catch (error) {
+    console.error('Invalid Base64 encoding:', error);
+    return false;
+  }
+}
+
 export async function subscribeToPushNotifications(): Promise<boolean> {
   try {
     // Get VAPID public key from server
@@ -94,14 +113,31 @@ export async function subscribeToPushNotifications(): Promise<boolean> {
       throw new Error('Push notifications are not configured on the server. VAPID keys are missing.');
     }
 
+    // Validate VAPID key format
+    if (!isValidBase64(publicKey)) {
+      throw new Error('Invalid VAPID key format received from server. Please contact support.');
+    }
+
     // Get service worker registration
     const registration = await navigator.serviceWorker.ready;
 
-    // Subscribe to push notifications
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
+    // Subscribe to push notifications (wrapped in try-catch for better error messages)
+    let subscription;
+    try {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    } catch (subscribeError: any) {
+      // Handle DOMException and other subscription errors
+      if (subscribeError.name === 'InvalidStateError') {
+        throw new Error('Notification subscription failed. You may already be subscribed. Please try disabling and re-enabling notifications.');
+      } else if (subscribeError.name === 'NotAllowedError') {
+        throw new Error('Notification permission was denied. Please allow notifications in your browser settings.');
+      } else {
+        throw new Error(`Failed to subscribe to notifications: ${subscribeError.message || 'Unknown error'}`);
+      }
+    }
 
     // Send subscription to server
     const subscribeResponse = await fetch('/api/notifications/subscribe', {

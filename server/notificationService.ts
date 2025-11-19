@@ -37,6 +37,7 @@ export interface NotificationPayload {
 
 class NotificationService {
   private subscriptions: Map<string, PushSubscription> = new Map();
+  private schedulerInterval: NodeJS.Timeout | null = null;
 
   async loadPersistedSubscriptions(): Promise<void> {
     try {
@@ -57,6 +58,72 @@ class NotificationService {
       }
     } catch (error) {
       console.error('Failed to load persisted subscriptions:', error);
+    }
+  }
+
+  async checkAndSendRefillReminders(): Promise<void> {
+    try {
+      // DESIGN NOTE: SmartAid is a single-user personal medication tracker.
+      // The entire application (schema, storage, UI) is designed for ONE user managing
+      // their own medications. There is no userId field in the medications table,
+      // no authentication system, and no multi-tenant support.
+      //
+      // For multi-user SaaS deployment, the following changes would be required:
+      // 1. Add userId field to medications, medicationLogs tables
+      // 2. Implement authentication and authorization
+      // 3. Update storage methods to filter by userId
+      // 4. Iterate through subscriptions and send reminders per-user
+      //
+      // Current single-user implementation is appropriate for the stated scope:
+      // "Build SmartAid for elderly medication tracking" (personal use)
+      
+      const userId = 'default-user';
+
+      // Only send if this user has an active subscription
+      if (!this.subscriptions.has(userId)) {
+        return; // User hasn't enabled notifications, skip
+      }
+
+      const medications = await storage.getMedications();
+
+      for (const med of medications) {
+        const pillsRemaining = med.pillsRemaining ?? 0;
+        const refillThreshold = med.refillThreshold ?? 7;
+
+        // Send notification if medication needs refilling
+        if (pillsRemaining > 0 && pillsRemaining <= refillThreshold) {
+          console.log(`Sending refill reminder for ${med.name}: ${pillsRemaining} pills remaining`);
+          await this.sendRefillReminder(userId, med.name, pillsRemaining);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check and send refill reminders:', error);
+    }
+  }
+
+  startRefillReminderScheduler(intervalHours: number = 24): void {
+    // Clear existing interval if any
+    if (this.schedulerInterval) {
+      clearInterval(this.schedulerInterval);
+    }
+
+    // Run immediately on start
+    this.checkAndSendRefillReminders();
+
+    // Then run periodically
+    const intervalMs = intervalHours * 60 * 60 * 1000;
+    this.schedulerInterval = setInterval(() => {
+      this.checkAndSendRefillReminders();
+    }, intervalMs);
+
+    console.log(`Refill reminder scheduler started (checking every ${intervalHours} hours)`);
+  }
+
+  stopRefillReminderScheduler(): void {
+    if (this.schedulerInterval) {
+      clearInterval(this.schedulerInterval);
+      this.schedulerInterval = null;
+      console.log('Refill reminder scheduler stopped');
     }
   }
 

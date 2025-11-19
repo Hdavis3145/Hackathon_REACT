@@ -51,10 +51,13 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
-
-  // Load persisted push notification subscriptions on boot
+  // Load persisted push notification subscriptions before registering routes
   await notificationService.loadPersistedSubscriptions();
+
+  // Start automatic refill reminder scheduler (runs once per process, every 24 hours)
+  notificationService.startRefillReminderScheduler(24);
+
+  const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
