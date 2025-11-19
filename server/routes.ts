@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMedicationLogSchema } from "@shared/schema";
+import { notificationService, type PushSubscription } from "./notificationService";
 
 // Image paths for pills
 const whiteTabletImg = "/attached_assets/generated_images/White_round_tablet_pill_531071e0.png";
@@ -173,6 +174,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch statistics" });
+    }
+  });
+
+  // GET /api/notifications/vapid-public-key - Get VAPID public key for push subscription
+  app.get("/api/notifications/vapid-public-key", (_req, res) => {
+    try {
+      const publicKey = notificationService.getVapidPublicKey();
+      res.json({ publicKey });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch VAPID public key" });
+    }
+  });
+
+  // POST /api/notifications/subscribe - Subscribe to push notifications
+  app.post("/api/notifications/subscribe", async (req, res) => {
+    try {
+      const subscription = req.body as PushSubscription;
+      
+      if (!subscription || !subscription.endpoint) {
+        return res.status(400).json({ error: "Invalid subscription" });
+      }
+
+      // For simplicity, using a default user ID. In production, use authenticated user ID
+      const userId = "default-user";
+      notificationService.addSubscription(userId, subscription);
+      
+      res.json({ success: true, message: "Subscription added successfully" });
+    } catch (error) {
+      console.error("Failed to subscribe:", error);
+      res.status(500).json({ error: "Failed to subscribe to notifications" });
+    }
+  });
+
+  // POST /api/notifications/unsubscribe - Unsubscribe from push notifications
+  app.post("/api/notifications/unsubscribe", async (req, res) => {
+    try {
+      const userId = "default-user";
+      notificationService.removeSubscription(userId);
+      
+      res.json({ success: true, message: "Subscription removed successfully" });
+    } catch (error) {
+      console.error("Failed to unsubscribe:", error);
+      res.status(500).json({ error: "Failed to unsubscribe from notifications" });
+    }
+  });
+
+  // POST /api/notifications/test - Send a test notification
+  app.post("/api/notifications/test", async (req, res) => {
+    try {
+      const userId = "default-user";
+      const success = await notificationService.sendRefillReminder(
+        userId,
+        "Test Medication",
+        5
+      );
+      
+      if (success) {
+        res.json({ success: true, message: "Test notification sent" });
+      } else {
+        res.status(400).json({ error: "No active subscription found" });
+      }
+    } catch (error) {
+      console.error("Failed to send test notification:", error);
+      res.status(500).json({ error: "Failed to send test notification" });
     }
   });
 

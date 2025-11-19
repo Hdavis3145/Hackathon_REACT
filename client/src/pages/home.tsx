@@ -4,12 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Camera, CheckCircle2, Clock, TrendingUp, AlertCircle, Calendar } from "lucide-react";
+import { Camera, CheckCircle2, Clock, TrendingUp, AlertCircle, Calendar, AlertTriangle, Package } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import MedicationCard from "@/components/MedicationCard";
 import BottomNav from "@/components/BottomNav";
 import { useLocation } from "wouter";
 import type { Medication, MedicationLog } from "@shared/schema";
+import { calculateRefillStatus, getMedicationsNeedingRefill } from "@/lib/refillUtils";
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -267,6 +268,71 @@ export default function Home() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Refill Alerts */}
+          {(() => {
+            const refillNeeded = getMedicationsNeedingRefill(medications);
+            if (refillNeeded.length === 0) return null;
+
+            return (
+              <Card className="border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/20" data-testid="card-refill-alerts">
+                <CardHeader className="gap-1 space-y-0 pb-4">
+                  <CardTitle className="flex items-center gap-3 text-[24px]">
+                    <AlertTriangle className="w-7 h-7 text-orange-600 dark:text-orange-400" />
+                    Refill Reminders
+                  </CardTitle>
+                  <CardDescription className="text-[18px]">
+                    {refillNeeded.length} medication{refillNeeded.length > 1 ? 's' : ''} need{refillNeeded.length === 1 ? 's' : ''} refilling
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {refillNeeded.map((med) => {
+                    const refillStatus = calculateRefillStatus(med);
+                    return (
+                      <div
+                        key={med.id}
+                        className="flex items-start gap-4 p-4 rounded-md bg-background border border-border"
+                        data-testid={`refill-alert-${med.name.toLowerCase()}`}
+                      >
+                        <div className="flex-shrink-0">
+                          <div className="w-16 h-16 rounded-md bg-white border-2 border-border flex items-center justify-center overflow-hidden">
+                            <img src={med.imageUrl} alt={med.name} className="w-full h-full object-cover" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0 space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="text-[22px] font-bold">{med.name}</h3>
+                              <p className="text-[18px] text-muted-foreground">{med.dosage}</p>
+                            </div>
+                            {refillStatus.urgent && (
+                              <Badge className="bg-red-600 text-white min-h-[40px] px-3 text-[16px] font-semibold">
+                                Urgent
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Package className="w-5 h-5 text-muted-foreground" />
+                            <span className="text-[18px] font-medium" data-testid={`refill-status-${med.name.toLowerCase()}`}>
+                              {refillStatus.message}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <Button
+                    variant="outline"
+                    className="w-full min-h-[56px] text-[20px] mt-2"
+                    onClick={() => setLocation("/settings")}
+                    data-testid="button-manage-refills"
+                  >
+                    Manage Notifications
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {/* Stats */}
           <div className="space-y-3">

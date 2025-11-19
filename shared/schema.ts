@@ -10,6 +10,9 @@ export const medications = pgTable("medications", {
   pillType: text("pill_type").notNull(),
   imageUrl: text("image_url").notNull(),
   times: text("times").array().notNull(),
+  pillsRemaining: integer("pills_remaining").default(30),
+  refillThreshold: integer("refill_threshold").default(7),
+  lastRefillDate: timestamp("last_refill_date"),
 });
 
 export const medicationLogs = pgTable("medication_logs", {

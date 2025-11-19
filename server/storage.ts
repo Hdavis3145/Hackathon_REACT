@@ -31,13 +31,16 @@ export class MemStorage implements IStorage {
 
   private initializeSampleData() {
     // Initialize with sample medications
-    const sampleMeds: InsertMedication[] = [
+    const sampleMeds: Partial<Medication>[] = [
       {
         name: "Lisinopril",
         dosage: "10mg",
         pillType: "white-round",
         imageUrl: whiteTabletImg,
         times: ["08:00", "20:00"],
+        pillsRemaining: 25,
+        refillThreshold: 7,
+        lastRefillDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
       },
       {
         name: "Metformin",
@@ -45,6 +48,9 @@ export class MemStorage implements IStorage {
         pillType: "blue-oval",
         imageUrl: blueCapsuleImg,
         times: ["09:00", "21:00"],
+        pillsRemaining: 45,
+        refillThreshold: 7,
+        lastRefillDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000), // 10 days ago
       },
       {
         name: "Atorvastatin",
@@ -52,6 +58,9 @@ export class MemStorage implements IStorage {
         pillType: "yellow-round",
         imageUrl: yellowTabletImg,
         times: ["20:00"],
+        pillsRemaining: 5,
+        refillThreshold: 7,
+        lastRefillDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000), // 20 days ago
       },
       {
         name: "Levothyroxine",
@@ -59,12 +68,15 @@ export class MemStorage implements IStorage {
         pillType: "pink-round",
         imageUrl: pinkPillImg,
         times: ["07:00"],
+        pillsRemaining: 30,
+        refillThreshold: 7,
+        lastRefillDate: new Date(),
       },
     ];
 
     sampleMeds.forEach(med => {
       const id = randomUUID();
-      this.medications.set(id, { ...med, id });
+      this.medications.set(id, { ...(med as Medication), id });
     });
 
     // Initialize with some sample logs for today

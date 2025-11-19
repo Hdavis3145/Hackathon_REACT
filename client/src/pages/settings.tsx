@@ -4,6 +4,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import BottomNav from "@/components/BottomNav";
+import { NotificationSettings } from "@/components/NotificationSettings";
 import { Bell, Moon, Volume2, Users, HelpCircle, LogOut } from "lucide-react";
 
 export default function Settings() {
@@ -12,14 +13,6 @@ export default function Settings() {
   const [darkMode, setDarkMode] = useState(false);
 
   const settingItems = [
-    {
-      icon: Bell,
-      label: "Medication Reminders",
-      description: "Get notified when it's time to take medication",
-      value: notifications,
-      onChange: setNotifications,
-      testId: "switch-notifications",
-    },
     {
       icon: Volume2,
       label: "Sound Alerts",
@@ -67,6 +60,9 @@ export default function Settings() {
         </div>
 
         <div className="px-6 space-y-6">
+          {/* Smart Notifications */}
+          <NotificationSettings />
+
           {/* Toggle Settings */}
           <div className="space-y-3">
             {settingItems.map((item) => {
