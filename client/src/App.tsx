@@ -9,7 +9,7 @@ import Schedule from "@/pages/schedule";
 import Scan from "@/pages/scan";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
-import LandingPage from "@/pages/LandingPage";
+import AuthPage from "@/pages/AuthPage";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -23,7 +23,7 @@ function Router() {
   }
 
   if (!isAuthenticated) {
-    return <LandingPage />;
+    return <AuthPage />;
   }
 
   return (

@@ -6,11 +6,22 @@ import { Label } from "@/components/ui/label";
 import BottomNav from "@/components/BottomNav";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { Bell, Moon, Volume2, Users, HelpCircle, LogOut } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function Settings() {
   const [notifications, setNotifications] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest("POST", "/api/logout", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    },
+  });
 
   const settingItems = [
     {
@@ -32,7 +43,7 @@ export default function Settings() {
   ];
 
   const handleLogout = () => {
-    window.location.href = "/api/logout";
+    logoutMutation.mutate();
   };
 
   const actionItems = [

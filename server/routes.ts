@@ -55,7 +55,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (err) {
           return res.status(500).json({ error: "Failed to log in after signup" });
         }
-        res.json(user);
+        const { passwordHash: _, ...userWithoutPassword } = user;
+        res.json(userWithoutPassword);
       });
     } catch (error) {
       console.error("Signup error:", error);
@@ -78,7 +79,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (loginErr) {
             return res.status(500).json({ error: "Failed to log in" });
           }
-          res.json(user);
+          const { passwordHash: _, ...userWithoutPassword } = user;
+          res.json(userWithoutPassword);
         });
       })(req, res, next);
     } catch (error) {
@@ -96,14 +98,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // GET /api/auth/user - Get current authenticated user
-  app.get("/api/auth/user", isAuthenticated, async (req, res) => {
+  // GET /api/auth/user - Get current authenticated user (returns null if not authenticated)
+  app.get("/api/auth/user", async (req, res) => {
     try {
-      const user = req.user;
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
+      if (!req.isAuthenticated() || !req.user) {
+        return res.json(null);
       }
-      res.json(user);
+      res.json(req.user);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch user" });
     }
