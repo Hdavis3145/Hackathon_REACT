@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default user ID for single-user deployment
+    function isDefaultUser() {
+      return true;
+    }
+    
+    // Medications collection
+    match /medications/{medicationId} {
+      allow read, write: if isDefaultUser();
+    }
+    
+    // Schedules collection
+    match /schedules/{scheduleId} {
+      allow read, write: if isDefaultUser();
+    }
+    
+    // Intakes collection
+    match /intakes/{intakeId} {
+      allow read, write: if isDefaultUser();
+    }
+    
+    // Caregivers collection
+    match /caregivers/{caregiverId} {
+      allow read, write: if isDefaultUser();
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read, write: if isDefaultUser();
+    }
+    
+    // Push subscriptions collection
+    match /pushSubscriptions/{subscriptionId} {
+      allow read, write: if isDefaultUser();
+    }
+  }
+}
