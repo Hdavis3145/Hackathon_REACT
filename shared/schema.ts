@@ -15,11 +15,10 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// Users table with email/password authentication
+// Users table (OAuth authentication via Replit Auth)
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").notNull().unique(),
-  passwordHash: varchar("password_hash"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
@@ -176,23 +175,6 @@ export const upsertUserSchema = createInsertSchema(users).omit({
   role: z.enum(['patient', 'caregiver']).optional(),
 });
 
-export const signupSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string().min(1, "Please confirm your password"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  role: z.enum(['patient', 'caregiver']).default('patient'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
-
-export const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1, "Password is required"),
-});
-
 // Types
 export type InsertMedication = z.infer<typeof insertMedicationSchema>;
 export type UpdateMedication = z.infer<typeof updateMedicationSchema>;
@@ -205,5 +187,3 @@ export type InsertMedicationSurvey = z.infer<typeof insertMedicationSurveySchema
 export type MedicationSurvey = typeof medicationSurveys.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
-export type Signup = z.infer<typeof signupSchema>;
-export type Login = z.infer<typeof loginSchema>;
