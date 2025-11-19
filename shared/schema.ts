@@ -77,12 +77,24 @@ export const medicationSurveys = pgTable("medication_surveys", {
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
 });
 
+export const caregivers = pgTable("caregivers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(), // link to patient
+  name: text("name").notNull(),
+  relationship: text("relationship").notNull(), // e.g., "Daughter", "Son", "Spouse"
+  phone: varchar("phone").notNull(),
+  email: varchar("email"),
+  isPrimary: integer("is_primary").notNull().default(0), // 1 for primary contact, 0 otherwise
+  createdAt: timestamp("created_at").notNull().default(sql`now()`),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   medications: many(medications),
   medicationLogs: many(medicationLogs),
   medicationSurveys: many(medicationSurveys),
   notificationSubscriptions: many(notificationSubscriptions),
+  caregivers: many(caregivers),
   caregiver: one(users, {
     fields: [users.caregiverId],
     references: [users.id],
@@ -121,6 +133,13 @@ export const medicationSurveysRelations = relations(medicationSurveys, ({ one })
 export const notificationSubscriptionsRelations = relations(notificationSubscriptions, ({ one }) => ({
   user: one(users, {
     fields: [notificationSubscriptions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const caregiversRelations = relations(caregivers, ({ one }) => ({
+  user: one(users, {
+    fields: [caregivers.userId],
     references: [users.id],
   }),
 }));
@@ -175,6 +194,18 @@ export const upsertUserSchema = createInsertSchema(users).omit({
   role: z.enum(['patient', 'caregiver']).optional(),
 });
 
+export const insertCaregiverSchema = createInsertSchema(caregivers).omit({
+  id: true,
+  userId: true, // will be added automatically from auth
+  createdAt: true,
+}).extend({
+  phone: z.string().min(10, "Phone number must be at least 10 digits"),
+  email: z.string().email().optional().or(z.literal('')),
+  isPrimary: z.number().min(0).max(1).optional(),
+});
+
+export const updateCaregiverSchema = insertCaregiverSchema.partial();
+
 // Types
 export type InsertMedication = z.infer<typeof insertMedicationSchema>;
 export type UpdateMedication = z.infer<typeof updateMedicationSchema>;
@@ -187,3 +218,6 @@ export type InsertMedicationSurvey = z.infer<typeof insertMedicationSurveySchema
 export type MedicationSurvey = typeof medicationSurveys.$inferSelect;
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type InsertCaregiver = z.infer<typeof insertCaregiverSchema>;
+export type UpdateCaregiver = z.infer<typeof updateCaregiverSchema>;
+export type Caregiver = typeof caregivers.$inferSelect;

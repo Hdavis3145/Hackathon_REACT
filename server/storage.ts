@@ -10,11 +10,15 @@ import {
   type InsertMedicationSurvey,
   type User,
   type UpsertUser,
+  type Caregiver,
+  type InsertCaregiver,
+  type UpdateCaregiver,
   medications,
   medicationLogs,
   notificationSubscriptions,
   medicationSurveys,
   users,
+  caregivers,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, gte, desc } from "drizzle-orm";
@@ -50,6 +54,13 @@ export interface IStorage {
   createMedicationSurvey(survey: InsertMedicationSurvey, userId: string): Promise<MedicationSurvey>;
   getMedicationSurveys(userId: string): Promise<MedicationSurvey[]>;
   getSurveyByLogId(medicationLogId: string, userId: string): Promise<MedicationSurvey | undefined>;
+  
+  // Caregivers
+  getCaregivers(userId: string): Promise<Caregiver[]>;
+  getCaregiver(id: string, userId: string): Promise<Caregiver | undefined>;
+  createCaregiver(caregiver: InsertCaregiver, userId: string): Promise<Caregiver>;
+  updateCaregiver(id: string, caregiver: UpdateCaregiver, userId: string): Promise<Caregiver | undefined>;
+  deleteCaregiver(id: string, userId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -264,6 +275,50 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return survey || undefined;
+  }
+
+  // Caregivers
+  async getCaregivers(userId: string): Promise<Caregiver[]> {
+    return await db
+      .select()
+      .from(caregivers)
+      .where(eq(caregivers.userId, userId))
+      .orderBy(desc(caregivers.isPrimary), desc(caregivers.createdAt));
+  }
+
+  async getCaregiver(id: string, userId: string): Promise<Caregiver | undefined> {
+    const [caregiver] = await db
+      .select()
+      .from(caregivers)
+      .where(and(eq(caregivers.id, id), eq(caregivers.userId, userId)));
+    return caregiver || undefined;
+  }
+
+  async createCaregiver(insertCaregiver: InsertCaregiver, userId: string): Promise<Caregiver> {
+    const [caregiver] = await db
+      .insert(caregivers)
+      .values({
+        ...insertCaregiver,
+        userId,
+      })
+      .returning();
+    return caregiver;
+  }
+
+  async updateCaregiver(id: string, updateCaregiver: UpdateCaregiver, userId: string): Promise<Caregiver | undefined> {
+    const [caregiver] = await db
+      .update(caregivers)
+      .set(updateCaregiver)
+      .where(and(eq(caregivers.id, id), eq(caregivers.userId, userId)))
+      .returning();
+    return caregiver || undefined;
+  }
+
+  async deleteCaregiver(id: string, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(caregivers)
+      .where(and(eq(caregivers.id, id), eq(caregivers.userId, userId)));
+    return true;
   }
 }
 
