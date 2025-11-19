@@ -1,6 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Camera, CheckCircle2, Clock, TrendingUp } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Camera, CheckCircle2, Clock, TrendingUp, AlertCircle, Calendar } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import MedicationCard from "@/components/MedicationCard";
 import BottomNav from "@/components/BottomNav";
@@ -71,6 +75,52 @@ export default function Home() {
   };
 
   const todayMeds = getTodayMedications();
+  
+  // Calculate daily summary metrics
+  const getTodaysSummary = () => {
+    // Use authoritative backend stats for accurate counts
+    const takenCount = stats?.takenCount || 0;
+    const missedCount = stats?.missedCount || 0;
+    const pendingCount = stats?.pendingCount || 0;
+    const totalScheduled = stats?.totalScheduledToday || 0;
+    const upcomingCount = Math.max(0, totalScheduled - takenCount - missedCount - pendingCount);
+    
+    const completionRate = totalScheduled > 0 
+      ? Math.round((takenCount / totalScheduled) * 100) 
+      : 0;
+    
+    let message = "";
+    let messageVariant: "default" | "success" | "warning" = "default";
+    
+    if (completionRate === 100) {
+      message = "Perfect! All medications taken today";
+      messageVariant = "success";
+    } else if (completionRate >= 80) {
+      message = "Great job! Keep up the good work";
+      messageVariant = "success";
+    } else if (completionRate >= 50) {
+      message = "You're doing well, stay on track";
+      messageVariant = "default";
+    } else if (missedCount > 0) {
+      message = "Don't forget your medications";
+      messageVariant = "warning";
+    } else {
+      message = "Start your day by taking your medications";
+      messageVariant = "default";
+    }
+    
+    return {
+      takenCount,
+      missedCount,
+      pendingCount,
+      upcomingCount,
+      completionRate,
+      message,
+      messageVariant,
+    };
+  };
+
+  const summary = getTodaysSummary();
 
   if (medsLoading) {
     return (
@@ -103,6 +153,120 @@ export default function Home() {
             <Camera className="w-8 h-8" />
             Scan Pill Now
           </Button>
+
+          {/* Daily Summary */}
+          <Card data-testid="card-daily-summary">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-[28px]">Daily Summary</CardTitle>
+                  <CardDescription className="text-[18px] mt-1">
+                    {new Date().toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}
+                  </CardDescription>
+                </div>
+                <Calendar className="w-8 h-8 text-primary" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Progress Bar */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[20px] font-medium">
+                    Daily Progress
+                  </span>
+                  <span className="text-[20px] font-bold text-primary">
+                    {summary.completionRate}%
+                  </span>
+                </div>
+                <Progress 
+                  value={summary.completionRate} 
+                  className="h-3"
+                  data-testid="progress-daily"
+                />
+                <p className={`text-[18px] ${
+                  summary.messageVariant === "success" 
+                    ? "text-green-600 dark:text-green-400" 
+                    : summary.messageVariant === "warning"
+                    ? "text-orange-600 dark:text-orange-400"
+                    : "text-muted-foreground"
+                }`}>
+                  {summary.message}
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Status Breakdown */}
+              <div className="space-y-4">
+                <h3 className="text-[22px] font-semibold">Status Breakdown</h3>
+                <div className="grid gap-3">
+                  {/* Taken */}
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
+                      <span className="text-[20px]">Taken</span>
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className="text-[18px] px-3 py-1 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800"
+                      data-testid="badge-taken-count"
+                    >
+                      {summary.takenCount}
+                    </Badge>
+                  </div>
+
+                  {/* Missed */}
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                      <span className="text-[20px]">Missed</span>
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className="text-[18px] px-3 py-1 bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800"
+                      data-testid="badge-missed-count"
+                    >
+                      {summary.missedCount}
+                    </Badge>
+                  </div>
+
+                  {/* Pending */}
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+                      <span className="text-[20px]">Pending</span>
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className="text-[18px] px-3 py-1 bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800"
+                      data-testid="badge-pending-count"
+                    >
+                      {summary.pendingCount}
+                    </Badge>
+                  </div>
+
+                  {/* Upcoming (future doses not yet due) */}
+                  <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <TrendingUp className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                      <span className="text-[20px]">Upcoming</span>
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className="text-[18px] px-3 py-1 bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800"
+                      data-testid="badge-upcoming-count"
+                    >
+                      {summary.upcomingCount}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Stats */}
           <div className="space-y-3">
