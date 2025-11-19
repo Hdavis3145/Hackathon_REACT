@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -8,12 +9,19 @@ import { Camera, CheckCircle2, Clock, TrendingUp, AlertCircle, Calendar, AlertTr
 import StatCard from "@/components/StatCard";
 import MedicationCard from "@/components/MedicationCard";
 import BottomNav from "@/components/BottomNav";
+import { MedicationSurvey } from "@/components/MedicationSurvey";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Medication, MedicationLog } from "@shared/schema";
 import { calculateRefillStatus, getMedicationsNeedingRefill } from "@/lib/refillUtils";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [loggedMedication, setLoggedMedication] = useState<{ logId: string; name: string } | null>(null);
   
   const { data: medications = [], isLoading: medsLoading } = useQuery<Medication[]>({
     queryKey: ["/api/medications"],
@@ -117,6 +125,57 @@ export default function Home() {
   };
 
   const summary = getTodaysSummary();
+
+  // Mutation to log medication from home page
+  const markTakenMutation = useMutation({
+    mutationFn: async ({ medicationId, medicationName, scheduledTime }: { medicationId: string; medicationName: string; scheduledTime: string }) => {
+      const logData = {
+        medicationId,
+        medicationName,
+        scheduledTime,
+        takenTime: new Date().toISOString(),
+        status: "taken",
+        confidence: 0, // Manual marking from home page
+        scannedPillType: "manual",
+      };
+
+      const res = await apiRequest("POST", "/api/logs", logData);
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/logs/today"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      
+      toast({
+        title: "Dose Logged",
+        description: `${variables.medicationName} has been recorded`,
+      });
+      
+      // Show survey dialog
+      setLoggedMedication({
+        logId: data.id,
+        name: variables.medicationName,
+      });
+      setShowSurvey(true);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to log medication",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleMarkTaken = (medicationId: string, medicationName: string, scheduledTime: string) => {
+    markTakenMutation.mutate({ medicationId, medicationName, scheduledTime });
+  };
+
+  const handleSurveyClose = () => {
+    setShowSurvey(false);
+    setLoggedMedication(null);
+  };
 
   if (medsLoading) {
     return (
@@ -460,7 +519,7 @@ export default function Home() {
                       time={item.time}
                       imageUrl={item.medication.imageUrl}
                       status={item.status}
-                      onMarkTaken={item.status === "pending" ? () => setLocation("/scan") : undefined}
+                      onMarkTaken={item.status === "pending" ? () => handleMarkTaken(item.medication.id, item.medication.name, item.time) : undefined}
                     />
                   ))}
                 </div>
@@ -480,6 +539,16 @@ export default function Home() {
       </div>
 
       <BottomNav />
+      
+      {/* Post-Medication Survey Dialog */}
+      {loggedMedication && (
+        <MedicationSurvey
+          open={showSurvey}
+          onOpenChange={handleSurveyClose}
+          medicationLogId={loggedMedication.logId}
+          medicationName={loggedMedication.name}
+        />
+      )}
     </div>
   );
 }
