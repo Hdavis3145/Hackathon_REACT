@@ -53,10 +53,10 @@ app.patch('/api/medications/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Medication not found' });
     }
     
-    res.json(medication);
+    return res.json(medication);
   } catch (error: any) {
     console.error('Error updating medication:', error);
-    res.status(400).json({ error: error.message || 'Failed to update medication' });
+    return res.status(400).json({ error: error.message || 'Failed to update medication' });
   }
 });
 
@@ -134,10 +134,10 @@ app.delete('/api/notification-subscriptions', async (req: Request, res: Response
     }
     
     await storage.deleteNotificationSubscription(endpoint);
-    res.json({ success: true });
+    return res.json({ success: true });
   } catch (error) {
     console.error('Error deleting subscription:', error);
-    res.status(500).json({ error: 'Failed to delete subscription' });
+    return res.status(500).json({ error: 'Failed to delete subscription' });
   }
 });
 
@@ -195,10 +195,10 @@ app.patch('/api/caregivers/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Caregiver not found' });
     }
     
-    res.json(caregiver);
+    return res.json(caregiver);
   } catch (error: any) {
     console.error('Error updating caregiver:', error);
-    res.status(400).json({ error: error.message || 'Failed to update caregiver' });
+    return res.status(400).json({ error: error.message || 'Failed to update caregiver' });
   }
 });
 
