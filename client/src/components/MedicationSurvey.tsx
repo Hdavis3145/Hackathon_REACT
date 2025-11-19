@@ -40,7 +40,7 @@ export function MedicationSurvey({
         throw new Error("Please answer all questions");
       }
 
-      return await apiRequest("/api/surveys", "POST", {
+      const response = await apiRequest("POST", "/api/surveys", {
         medicationLogId,
         medicationName,
         hasDizziness,
@@ -49,6 +49,8 @@ export function MedicationSurvey({
         appetiteLevel,
         notes: notes.trim() || undefined,
       });
+      
+      return response.json();
     },
     onSuccess: () => {
       toast({
