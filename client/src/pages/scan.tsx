@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import CameraView from "@/components/CameraView";
 import PillIdentification from "@/components/PillIdentification";
+import { MedicationSurvey } from "@/components/MedicationSurvey";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -21,6 +22,8 @@ export default function Scan() {
   const queryClient = useQueryClient();
   const [isScanning, setIsScanning] = useState(true);
   const [identifiedPill, setIdentifiedPill] = useState<IdentifiedPill | null>(null);
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [loggedMedication, setLoggedMedication] = useState<{ logId: string; name: string } | null>(null);
 
   const { data: medications = [] } = useQuery<Medication[]>({
     queryKey: ["/api/medications"],
@@ -98,7 +101,7 @@ export default function Scan() {
       const res = await apiRequest("POST", "/api/logs", logData);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/logs/today"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
@@ -107,7 +110,13 @@ export default function Scan() {
         title: "Dose Logged",
         description: `${identifiedPill?.pillName} has been recorded`,
       });
-      setLocation("/");
+      
+      // Show survey dialog
+      setLoggedMedication({
+        logId: data.id,
+        name: identifiedPill?.pillName || "Medication",
+      });
+      setShowSurvey(true);
     },
     onError: (error: any) => {
       toast({
@@ -133,6 +142,12 @@ export default function Scan() {
     setIsScanning(true);
   };
 
+  const handleSurveyClose = () => {
+    setShowSurvey(false);
+    setLoggedMedication(null);
+    setLocation("/");
+  };
+
   if (isScanning) {
     return (
       <CameraView
@@ -147,16 +162,27 @@ export default function Scan() {
     const matchingMed = medications.find(m => m.name === identifiedPill.pillName);
 
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <PillIdentification
-          pillName={identifiedPill.pillName}
-          pillImage={identifiedPill.pillImage}
-          confidence={identifiedPill.confidence}
-          expectedPill={matchingMed?.name}
-          onConfirm={matchingMed ? handleConfirm : undefined}
-          onRetry={handleRetry}
-        />
-      </div>
+      <>
+        <div className="min-h-screen bg-background flex items-center justify-center p-6">
+          <PillIdentification
+            pillName={identifiedPill.pillName}
+            pillImage={identifiedPill.pillImage}
+            confidence={identifiedPill.confidence}
+            expectedPill={matchingMed?.name}
+            onConfirm={matchingMed ? handleConfirm : undefined}
+            onRetry={handleRetry}
+          />
+        </div>
+        
+        {loggedMedication && (
+          <MedicationSurvey
+            open={showSurvey}
+            onOpenChange={handleSurveyClose}
+            medicationLogId={loggedMedication.logId}
+            medicationName={loggedMedication.name}
+          />
+        )}
+      </>
     );
   }
 
