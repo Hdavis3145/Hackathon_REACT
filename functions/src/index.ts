@@ -2,6 +2,7 @@ import * as functions from 'firebase-functions';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import * as storage from './storage';
+import * as notificationService from './notificationService';
 import {
   insertMedicationSchema,
   updateMedicationSchema,
@@ -213,15 +214,38 @@ app.delete('/api/caregivers/:id', async (req: Request, res: Response) => {
   }
 });
 
+// VAPID public key endpoint
+app.get('/api/vapid-public-key', async (req: Request, res: Response) => {
+  try {
+    const publicKey = notificationService.getVapidPublicKey();
+    
+    if (!publicKey) {
+      return res.status(500).json({ error: 'VAPID public key not configured' });
+    }
+    
+    return res.json({ publicKey });
+  } catch (error) {
+    console.error('Error getting VAPID public key:', error);
+    return res.status(500).json({ error: 'Failed to get VAPID public key' });
+  }
+});
+
 // Test notification route (for push notifications)
 app.post('/api/test-notification', async (req: Request, res: Response) => {
   try {
-    // This would integrate with web-push for sending notifications
-    // For now, returning success
-    res.json({ success: true, message: 'Notification sent' });
+    const success = await notificationService.sendTestNotification(DEFAULT_USER_ID);
+    
+    if (success) {
+      return res.json({ success: true, message: 'Test notification sent successfully!' });
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Failed to send notification. Make sure notifications are enabled.' 
+      });
+    }
   } catch (error) {
     console.error('Error sending test notification:', error);
-    res.status(500).json({ error: 'Failed to send notification' });
+    return res.status(500).json({ error: 'Failed to send notification' });
   }
 });
 

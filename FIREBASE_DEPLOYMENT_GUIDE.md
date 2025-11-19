@@ -41,22 +41,46 @@ npm install
 cd ..
 ```
 
-## Step 5: Set Environment Variables for Cloud Functions
+## Step 5: Generate VAPID Keys for Push Notifications
 
-Firebase Cloud Functions need environment variables for:
-- ROBOFLOW_API_KEY
-- VAPID_PUBLIC_KEY
-- VAPID_PRIVATE_KEY
-
-Set them using:
+First, generate VAPID keys for push notifications:
 
 ```bash
-firebase functions:config:set roboflow.api_key="YOUR_ROBOFLOW_API_KEY"
-firebase functions:config:set vapid.public_key="YOUR_VAPID_PUBLIC_KEY"
-firebase functions:config:set vapid.private_key="YOUR_VAPID_PRIVATE_KEY"
+npx web-push generate-vapid-keys
 ```
 
-## Step 6: Build the Frontend
+This will output something like:
+```
+=======================================
+
+Public Key:
+BG7x...your-public-key-here...
+
+Private Key:
+ab1c...your-private-key-here...
+
+=======================================
+```
+
+**Save these keys!** You'll need them in the next step.
+
+## Step 6: Set Environment Variables for Cloud Functions
+
+Create a `.env` file in the `functions` directory with your keys:
+
+```bash
+cd functions
+cat > .env << 'EOF'
+VAPID_PUBLIC_KEY=your-public-key-from-above
+VAPID_PRIVATE_KEY=your-private-key-from-above
+ROBOFLOW_API_KEY=your-roboflow-api-key
+EOF
+cd ..
+```
+
+**Important**: The `.env` file is used for local testing. For production, Firebase will use these automatically when you deploy.
+
+## Step 7: Build the Frontend
 
 ```bash
 npm run build
@@ -64,7 +88,7 @@ npm run build
 
 This creates a `dist` folder with your production-ready frontend.
 
-## Step 7: Deploy to Firebase
+## Step 8: Deploy to Firebase
 
 Deploy everything at once:
 
@@ -85,7 +109,33 @@ firebase deploy --only functions
 firebase deploy --only firestore:rules
 ```
 
-## Step 8: Access Your Deployed App
+## Step 9: Test Push Notifications on Your Phone
+
+After deployment:
+
+1. **Open your app** on your phone: `https://hackathon-fall-2025.web.app`
+2. **Go to Settings** page
+3. **Enable Notifications** - tap the "Enable Notifications" button
+4. **Allow notifications** when your browser prompts
+5. **Send a test notification** - tap "Send Test Notification"
+6. **Check your phone** - you should receive a notification saying "SmartAid notifications are working correctly!"
+
+### Troubleshooting Notifications
+
+**If you don't receive the test notification:**
+
+1. **Check browser permissions**: Make sure notifications are allowed in your browser settings
+2. **Check Firebase logs**: Run `firebase functions:log` to see if there are any errors
+3. **Verify VAPID keys**: Make sure they're set correctly in the `.env` file
+4. **Try on HTTPS**: Notifications only work on HTTPS (Firebase Hosting provides this automatically)
+
+**Supported browsers on mobile:**
+- ✅ Chrome for Android
+- ✅ Samsung Internet Browser
+- ✅ Firefox for Android
+- ⚠️ Safari on iOS (limited support, requires iOS 16.4+)
+
+## Step 10: Access Your Deployed App
 
 After deployment, Firebase will provide you with a URL like:
 
