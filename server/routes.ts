@@ -124,34 +124,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // POST /api/identify-pill - Identify a scanned pill
+  // POST /api/identify-pill - Identify a scanned pill using Roboflow AI
   app.post("/api/identify-pill", async (req, res) => {
     try {
       const userId = DEFAULT_USER_ID;
-      // Get user's scheduled medications
+      const { imageData } = req.body;
+      
+      if (!imageData) {
+        return res.status(400).json({ error: "No image data provided" });
+      }
+
+      // Convert base64 image to buffer for Roboflow API
+      // Remove the "data:image/jpeg;base64," prefix if present
+      const base64Image = imageData.replace(/^data:image\/\w+;base64,/, "");
+      
+      // Call Roboflow Workflow API
+      // Based on user's Python code: workspace="hackathon-fall-2025", workflow="custom-workflow-5"
+      // Using Bearer token authentication as per Roboflow docs
+      const roboflowResponse = await fetch("https://serverless.roboflow.com/hackathon-fall-2025/workflows/custom-workflow-5", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.ROBOFLOW_API_KEY || ""}`,
+        },
+        body: JSON.stringify({
+          api_key: process.env.ROBOFLOW_API_KEY || "",
+          inputs: {
+            image: base64Image,
+          },
+        }),
+      });
+
+      if (!roboflowResponse.ok) {
+        const errorText = await roboflowResponse.text();
+        console.error("❌ Roboflow API error (HTTP", roboflowResponse.status, "):", errorText);
+        throw new Error(`Roboflow API returned ${roboflowResponse.status}: ${errorText}`);
+      }
+
+      const roboflowData = await roboflowResponse.json();
+      console.log("✅ Roboflow API Response (Full):", JSON.stringify(roboflowData, null, 2));
+
+      // Parse Roboflow workflow response
+      // Workflows typically return outputs nested in a specific structure
+      // Common patterns: { outputs: {...} }, { predictions: [...] }, or direct fields
+      let pillName = "Unknown Medication";
+      let pillType = "unknown";
+      let confidence = 85;
+      let commonFor = "Medical Treatment";
+
+      // Try to extract from common Roboflow response patterns
+      if (roboflowData.outputs) {
+        // Workflow outputs pattern
+        console.log("📊 Parsing from roboflowData.outputs...");
+        const outputs = roboflowData.outputs;
+        pillName = outputs.pill_name || outputs.medication_name || outputs.name || pillName;
+        pillType = outputs.pill_type || outputs.type || pillType;
+        confidence = outputs.confidence || confidence;
+        commonFor = outputs.indication || outputs.common_for || outputs.use || commonFor;
+      } else if (roboflowData.predictions && Array.isArray(roboflowData.predictions) && roboflowData.predictions.length > 0) {
+        // Detection/classification predictions pattern
+        console.log("📊 Parsing from roboflowData.predictions...");
+        const firstPrediction = roboflowData.predictions[0];
+        pillName = firstPrediction.class || firstPrediction.name || pillName;
+        confidence = firstPrediction.confidence ? Math.round(firstPrediction.confidence * 100) : confidence;
+      } else {
+        // Direct fields pattern
+        console.log("📊 Parsing from roboflowData (direct fields)...");
+        pillName = roboflowData.pill_name || roboflowData.medication_name || roboflowData.name || pillName;
+        pillType = roboflowData.pill_type || roboflowData.type || pillType;
+        confidence = roboflowData.confidence || confidence;
+        commonFor = roboflowData.indication || roboflowData.common_for || commonFor;
+      }
+
+      console.log("🔍 Extracted values:", { pillName, pillType, confidence, commonFor });
+
+      // Get user's scheduled medications to match pill image
       const scheduledMeds = await storage.getMedications(userId);
-      
-      // Filter pill database to only include scheduled medications
-      const scheduledPills = pillDatabase.filter(pill => 
-        scheduledMeds.some(med => med.name === pill.name)
+      const matchingMed = scheduledMeds.find(med => 
+        med.name.toLowerCase() === pillName.toLowerCase()
       );
-      
-      // If no scheduled pills match, return a random one from the full database
-      const availablePills = scheduledPills.length > 0 ? scheduledPills : pillDatabase;
-      
-      // Randomly select a pill to simulate identification
-      const randomIndex = Math.floor(Math.random() * availablePills.length);
-      const identifiedPill = availablePills[randomIndex];
-      const confidence = Math.floor(Math.random() * 20) + 80; // 80-100%
+
+      // Use matched medication's image or find from pill database
+      let pillImage = matchingMed?.imageUrl || "";
+      if (!pillImage) {
+        const dbPill = pillDatabase.find(pill => 
+          pill.name.toLowerCase() === pillName.toLowerCase()
+        );
+        pillImage = dbPill?.image || blueCapsuleImg; // Default fallback
+      }
 
       res.json({
-        pillName: identifiedPill.name,
-        pillType: identifiedPill.type,
-        pillImage: identifiedPill.image,
+        pillName,
+        pillType,
+        pillImage,
         confidence,
-        commonFor: identifiedPill.commonFor,
+        commonFor,
       });
     } catch (error) {
+      console.error("Pill identification error:", error);
       res.status(500).json({ error: "Failed to identify pill" });
     }
   });
