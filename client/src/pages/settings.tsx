@@ -5,16 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import BottomNav from "@/components/BottomNav";
 import { NotificationSettings } from "@/components/NotificationSettings";
-import { Bell, Moon, Volume2, Users, HelpCircle, LogOut } from "lucide-react";
+import { Moon, Volume2, Users, HelpCircle } from "lucide-react";
 
 export default function Settings() {
   const [notifications, setNotifications] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
-
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
-  };
 
   const settingItems = [
     {
@@ -49,13 +45,6 @@ export default function Settings() {
       description: "Get help using SmartAid",
       testId: "button-help",
       onClick: () => console.log("Help & Support"),
-    },
-    {
-      icon: LogOut,
-      label: "Log Out",
-      description: "Sign out of your account",
-      testId: "button-logout",
-      onClick: handleLogout,
     },
   ];
 

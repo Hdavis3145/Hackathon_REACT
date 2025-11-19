@@ -3,7 +3,9 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMedicationSchema, updateMedicationSchema, insertMedicationLogSchema, insertMedicationSurveySchema } from "@shared/schema";
 import { notificationService, type PushSubscription } from "./notificationService";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+
+// Default user for single-user household deployment (no authentication)
+const DEFAULT_USER_ID = "default-user";
 
 // Image paths for pills
 const whiteTabletImg = "/attached_assets/generated_images/White_round_tablet_pill_531071e0.png";
@@ -28,23 +30,24 @@ const pillDatabase = [
 ];
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication with Replit OAuth
-  await setupAuth(app);
-
-  // GET /api/auth/user - Get current authenticated user (returns user data from OAuth)
+  // No authentication - single-user household deployment
+  
+  // GET /api/auth/user - Get default user (no authentication required)
   app.get("/api/auth/user", async (req, res) => {
     try {
-      if (!req.isAuthenticated() || !req.user) {
-        return res.json(null);
+      // Return a default user for single-user deployment
+      const user = await storage.getUserById(DEFAULT_USER_ID);
+      if (!user) {
+        // Create default user if it doesn't exist
+        const defaultUser = await storage.upsertUser({
+          id: DEFAULT_USER_ID,
+          email: "user@smartaid.local",
+          firstName: "SmartAid",
+          lastName: "User",
+          role: "patient",
+        });
+        return res.json(defaultUser);
       }
-      
-      // Get user from database using OAuth claims
-      const userClaims = (req.user as any).claims;
-      if (!userClaims) {
-        return res.json(null);
-      }
-      
-      const user = await storage.getUserById(userClaims.sub);
       res.json(user);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch user" });
@@ -52,9 +55,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // GET /api/medications - Get all medications in schedule
-  app.get("/api/medications", isAuthenticated, async (req, res) => {
+  app.get("/api/medications", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const medications = await storage.getMedications(userId);
       res.json(medications);
     } catch (error) {
@@ -63,9 +66,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/medications/:id - Get specific medication
-  app.get("/api/medications/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/medications/:id", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const medication = await storage.getMedication(req.params.id, userId);
       if (!medication) {
         return res.status(404).json({ error: "Medication not found" });
@@ -77,9 +80,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/medications - Create a new medication
-  app.post("/api/medications", isAuthenticated, async (req, res) => {
+  app.post("/api/medications", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const validatedData = insertMedicationSchema.parse(req.body);
       const medication = await storage.createMedication(validatedData, userId);
       res.json(medication);
@@ -90,9 +93,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // PATCH /api/medications/:id - Update a medication
-  app.patch("/api/medications/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/medications/:id", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       // Use dedicated update schema that only allows specific fields
       const validatedData = updateMedicationSchema.parse(req.body);
       const medication = await storage.updateMedication(req.params.id, validatedData, userId);
@@ -107,9 +110,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // DELETE /api/medications/:id - Delete a medication
-  app.delete("/api/medications/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/medications/:id", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const deleted = await storage.deleteMedication(req.params.id, userId);
       if (!deleted) {
         return res.status(404).json({ error: "Medication not found" });
@@ -122,9 +125,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/identify-pill - Identify a scanned pill
-  app.post("/api/identify-pill", isAuthenticated, async (req, res) => {
+  app.post("/api/identify-pill", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       // Get user's scheduled medications
       const scheduledMeds = await storage.getMedications(userId);
       
@@ -154,9 +157,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/logs - Create a medication log entry
-  app.post("/api/logs", isAuthenticated, async (req, res) => {
+  app.post("/api/logs", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const validatedData = insertMedicationLogSchema.parse(req.body);
       const log = await storage.createMedicationLog(validatedData, userId);
       res.json(log);
@@ -167,9 +170,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/logs - Get all medication logs
-  app.get("/api/logs", isAuthenticated, async (req, res) => {
+  app.get("/api/logs", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const logs = await storage.getMedicationLogs(userId);
       res.json(logs);
     } catch (error) {
@@ -178,9 +181,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/logs/today - Get today's medication logs
-  app.get("/api/logs/today", isAuthenticated, async (req, res) => {
+  app.get("/api/logs/today", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const logs = await storage.getTodayLogs(userId);
       res.json(logs);
     } catch (error) {
@@ -189,9 +192,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/stats - Get medication statistics
-  app.get("/api/stats", isAuthenticated, async (req, res) => {
+  app.get("/api/stats", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const medications = await storage.getMedications(userId);
       const todayLogs = await storage.getTodayLogs(userId);
       
@@ -261,9 +264,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/notifications/subscribe - Subscribe to push notifications
-  app.post("/api/notifications/subscribe", isAuthenticated, async (req, res) => {
+  app.post("/api/notifications/subscribe", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const subscription = req.body as PushSubscription;
       
       // Validate subscription payload
@@ -295,9 +298,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/notifications/unsubscribe - Unsubscribe from push notifications
-  app.post("/api/notifications/unsubscribe", isAuthenticated, async (req, res) => {
+  app.post("/api/notifications/unsubscribe", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       
       // Remove from storage
       await storage.deleteSubscription(userId);
@@ -313,9 +316,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/notifications/test - Send a test notification
-  app.post("/api/notifications/test", isAuthenticated, async (req, res) => {
+  app.post("/api/notifications/test", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const success = await notificationService.sendRefillReminder(
         userId,
         "Test Medication",
@@ -334,9 +337,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // POST /api/surveys - Submit a medication survey
-  app.post("/api/surveys", isAuthenticated, async (req, res) => {
+  app.post("/api/surveys", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const validatedData = insertMedicationSurveySchema.parse(req.body);
       const survey = await storage.createMedicationSurvey(validatedData, userId);
       res.json(survey);
@@ -347,9 +350,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/surveys - Get all surveys
-  app.get("/api/surveys", isAuthenticated, async (req, res) => {
+  app.get("/api/surveys", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const surveys = await storage.getMedicationSurveys(userId);
       res.json(surveys);
     } catch (error) {
@@ -359,9 +362,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/surveys/log/:logId - Get survey for a specific medication log
-  app.get("/api/surveys/log/:logId", isAuthenticated, async (req, res) => {
+  app.get("/api/surveys/log/:logId", async (req, res) => {
     try {
-      const userId = (req.user as any).claims.sub;
+      const userId = DEFAULT_USER_ID;
       const survey = await storage.getSurveyByLogId(req.params.logId, userId);
       if (!survey) {
         return res.status(404).json({ error: "Survey not found" });
