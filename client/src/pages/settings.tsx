@@ -115,7 +115,7 @@ export default function Settings() {
                 </div>
               );
 
-              if ('href' in item) {
+              if ('href' in item && item.href) {
                 return (
                   <Link key={item.label} href={item.href}>
                     <Button

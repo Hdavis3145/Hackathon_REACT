@@ -32,7 +32,7 @@ const caregiverSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   relationship: z.string().min(1, "Please select a relationship"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  email: z.string().email().optional().or(z.literal("")),
+  email: z.union([z.string().email(), z.literal("")]).optional(),
   isPrimary: z.number().min(0).max(1).optional(),
 });
 
@@ -60,7 +60,7 @@ export default function Caregivers() {
 
   const createMutation = useMutation({
     mutationFn: async (data: CaregiverFormData) => {
-      return apiRequest("/api/caregivers", "POST", data);
+      return apiRequest("POST", "/api/caregivers", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/caregivers"] });
@@ -71,10 +71,10 @@ export default function Caregivers() {
       setIsFormOpen(false);
       form.reset();
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: "Failed to add caregiver. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to add caregiver. Please try again.",
         variant: "destructive",
       });
     },
@@ -82,7 +82,7 @@ export default function Caregivers() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: CaregiverFormData }) => {
-      return apiRequest(`/api/caregivers/${id}`, "PATCH", data);
+      return apiRequest("PATCH", `/api/caregivers/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/caregivers"] });
@@ -105,7 +105,7 @@ export default function Caregivers() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest(`/api/caregivers/${id}`, "DELETE");
+      return apiRequest("DELETE", `/api/caregivers/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/caregivers"] });
@@ -240,7 +240,7 @@ export default function Caregivers() {
                         <FormLabel className="text-[20px]">Relationship</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
                           <FormControl>
                             <SelectTrigger
